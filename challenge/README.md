@@ -3,12 +3,8 @@
 Bootcamp Challenge 8: Module pewlett-hackard-analysis
 
 ### Dataset Used
-- [departments.csv](https://courses.bootcampspot.com/courses/140/files/35977)
-- [dept_emp.csv](https://courses.bootcampspot.com/courses/140/files/35983)
-- [dept_manager.csv](https://courses.bootcampspot.com/courses/140/files/35979)
-- [employees.csv](https://courses.bootcampspot.com/courses/140/files/36133)
-- [salaries.csv](https://courses.bootcampspot.com/courses/140/files/36560)
-- [titles.csv](https://courses.bootcampspot.com/courses/140/files/36723)
+- [wikipedia.movies.json](https://courses.bootcampspot.com/courses/140/files/37183/download?wrap=1)
+- [zip file from Kaggle](https://www.kaggle.com/rounakbanik/the-movies-dataset/download)
 
 ### Challenge Objectives
 The goals of this challenge are for you to:
