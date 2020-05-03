@@ -6,4 +6,4 @@
 [Challenge](challenge/)
 
 ### Module
-[Module](module/
+[Module](module/)
