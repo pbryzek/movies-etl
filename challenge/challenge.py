@@ -19,6 +19,18 @@ file_dir = '/Users/pbryzek/Desktop/CodeBases/data/movies-etl/module/res/'
 ####
 #Functions
 ####
+#Function to aggregate the rating_counts and left merge the set on kaggle_id
+def merge_movies_ratings(movies_df, ratings):
+    rating_counts = ratings.groupby(['movieId','rating'], as_index=False).count()
+    rating_counts = rating_counts.rename({'userId':'count'}, axis=1) 
+    rating_counts = rating_counts.pivot(index='movieId',columns='rating', values='count')
+    rating_counts.columns = ['rating_' + str(col) for col in rating_counts.columns]
+    #Left merge into the movies_df
+    movies_with_ratings_df = pd.merge(movies_df, rating_counts, left_on='kaggle_id', right_index=True, how='left')
+    movies_with_ratings_df[rating_counts.columns] = movies_with_ratings_df[rating_counts.columns].fillna(0)
+    
+    return movies_df
+
 def movies_plots(movies_df):
     movies_df.fillna(0).plot(x='running_time', y='runtime', kind='scatter')
     movies_df.fillna(0).plot(x='budget_wiki',y='budget_kaggle', kind='scatter')
@@ -63,15 +75,22 @@ def populate_kaggle(kaggle_metadata):
     kaggle_metadata = kaggle_metadata[kaggle_metadata['adult'] == 'False'].drop('adult',axis='columns')
     kaggle_metadata['video'] = kaggle_metadata['video'] == 'True'
     kaggle_metadata['budget'] = kaggle_metadata['budget'].astype(int)
-    kaggle_metadata['id'] = pd.to_numeric(kaggle_metadata['id'], errors='raise')
-    #Assumption is that kaggle popularity is not numberic.
-    kaggle_metadata['popularity'] = pd.to_numeric(kaggle_metadata['popularity'], errors='raise')
+    #Assumption: the value held in kaggle_metadata['id'] is a string that contains a numeric
+    try:
+        kaggle_metadata['id'] = pd.to_numeric(kaggle_metadata['id'], errors='raise')
+    except ValueError as ve:
+        print("populate_kaggle: Non numeric value found for ID",ve)
+    #Assumption: the value held in kaggle_metadata['popularity'] is a string that contains a numeric.
+    try:
+        kaggle_metadata['popularity'] = pd.to_numeric(kaggle_metadata['popularity'], errors='raise')
+    except ValueError as ve:
+        print("populate_kaggle: Non numeric value found for popularity",ve)
     kaggle_metadata['release_date'] = pd.to_datetime(kaggle_metadata['release_date'])
     return kaggle_metadata
 
 #Function to parse out the release_date info and add to a new column.
 def add_release_date(wiki_movies_df):
-    # Release Date
+    # Set Release Date to a concatenated list of values (if it was originally a list) separated by a space.
     release_date = wiki_movies_df['Release date'].dropna().apply(lambda x: ' '.join(x) if type(x) == list else x)
     date_form_one = r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s[123]\d,\s\d{4}'
     date_form_two = r'\d{4}.[01]\d.[123]\d'
@@ -200,9 +219,15 @@ def clean_movie(movie):
 
 #Function to parse out the box_office info and add to a new column.
 def add_running_time(wiki_movies_df):
+    #Hold the non null values of RElease date in the dataframe
     running_time = wiki_movies_df['Running time'].dropna().apply(lambda x: ' '.join(x) if type(x) == list else x)
+    #Assumption, no days or seconds present.
     running_time_extract = running_time.str.extract(r'(\d+)\s*ho?u?r?s?\s*(\d*)|(\d+)\s*m')
-    running_time_extract = running_time_extract.apply(lambda col: pd.to_numeric(col, errors='coerce')).fillna(0)
+    try:
+        running_time_extract = running_time_extract.apply(lambda col: pd.to_numeric(col, errors='coerce')).fillna(0)
+    except ValueError as ve:
+        print("add_running_time: Non numeric value found",ve)
+
     wiki_movies_df['running_time'] = running_time_extract.apply(lambda row: row[0]*60 + row[1] if row[2] == 0 else row[2], axis=1)
     wiki_movies_df.drop('Running time', axis=1, inplace=True)
     return wiki_movies_df
@@ -230,9 +255,6 @@ def upload_data_sql(movies_df):
 
 #Challenge function entry point as defined by the challenge.
 def challenge(wiki_movies_raw, kaggle_metadata, ratings):
-    # Add try except blocks where appropriate to make it run automatically
-    # Document 5 assumptions
-
     #Loop through and call clean_movie on each movie in the JSON
     clean_movies = [clean_movie(movie) for movie in wiki_movies_raw]
     #Convert the movies JSON into a dataframe
@@ -240,7 +262,7 @@ def challenge(wiki_movies_raw, kaggle_metadata, ratings):
     #Sort the dataframe on the columns
     sorted(wiki_movies_df.columns.tolist())
     
-    #Assumption 1: Assume that all imdb_links contain a tt and that all IDs are of length 7. What if another string as tt1234567 in the url
+    #Assumption: Assume that all imdb_links contain a tt and that all IDs are of length 7.
     try:
         #Extract with RegEx the imdb_link from URL imdb_link e.g. (https://www.imdb.com/title/tt1234567/)
         wiki_movies_df['imdb_id'] = wiki_movies_df['imdb_link'].str.extract(r'(tt\d{7})')
@@ -277,45 +299,48 @@ def challenge(wiki_movies_raw, kaggle_metadata, ratings):
     # Competing data:
     # Wiki                     Movielens                Resolution
     #--------------------------------------------------------------------------
-    # title_wiki               title_kaggle
-    # running_time             runtime
-    # budget_wiki              budget_kaggle
-    # box_office               revenue
-    # release_date_wiki        release_date_kaggle
-    # Language                 original_language
-    # Production company(s)    production_companies     
+    # title_wiki               title_kaggle             Drop Wikipedia.
+    # running_time             runtime                  Keep Kaggle; fill in zeroes with Wikipedia data.
+    # budget_wiki              budget_kaggle            Keep Kaggle; fill in zeroes with Wikipedia data.
+    # box_office               revenue                  Keep Kaggle; fill in zeroes with Wikipedia data.
+    # release_date_wiki        release_date_kaggle      Drop Wikipedia.
+    # Language                 original_language        Drop Wikipedia.
+    # Production company(s)    production_companies     Drop Wikipedia.
 
     movies_df = movies_plots(movies_df)
     movies_df = movies_df.drop(movies_df[(movies_df['release_date_wiki'] > '1996-01-01') & (movies_df['release_date_kaggle'] < '1965-01-01')].index)
 
     movies_df['Language'].apply(lambda x: tuple(x) if type(x) == list else x).value_counts(dropna=False)
     movies_df.drop(columns=['title_wiki','release_date_wiki','Language','Production company(s)'], inplace=True)
-
+    #Fill in missing data on the movies_df to prepare for the merge
     movies_df = fill_missing_kaggle_data(movies_df, 'runtime', 'running_time')
     movies_df = fill_missing_kaggle_data(movies_df, 'budget_kaggle', 'budget_wiki')
     movies_df = fill_missing_kaggle_data(movies_df, 'revenue', 'box_office')
+
     #Rename and reorder the columns
     movies_df = rename_cols(movies_df)
-
-    rating_counts = ratings.groupby(['movieId','rating'], as_index=False).count()
-    rating_counts = rating_counts.rename({'userId':'count'}, axis=1) 
-    rating_counts = rating_counts.pivot(index='movieId',columns='rating', values='count')
-    rating_counts.columns = ['rating_' + str(col) for col in rating_counts.columns]
-
-    movies_with_ratings_df = pd.merge(movies_df, rating_counts, left_on='kaggle_id', right_index=True, how='left')
-    movies_with_ratings_df[rating_counts.columns] = movies_with_ratings_df[rating_counts.columns].fillna(0)
+    #Left Merge movies and ratings 
+    movies_df = merge_movies_ratings(movies_df, ratings)
 
     upload_data_sql(movies_df)
 
+#Main fuction to read the 3 files and call the challenge function.
 def main():
     #Read data from Files 
-    with open(f'{file_dir}wikipedia.movies.json', mode='r') as file:
-        wiki_movies_raw = json.load(file)
-    kaggle_metadata = pd.read_csv(f'{file_dir}movies_metadata.csv',low_memory=False)
-    ratings = pd.read_csv(f'{file_dir}ratings.csv')
+    try:
+        with open(f'{file_dir}wikipedia.movies.json', mode='r') as file:
+            try:
+                wiki_movies_raw = json.load(file)
+            except ValueError:  # includes simplejson.decoder.JSONDecodeError
+                print ('main: Decoding JSON has failed')
+        kaggle_metadata = pd.read_csv(f'{file_dir}movies_metadata.csv',low_memory=False)
+        ratings = pd.read_csv(f'{file_dir}ratings.csv')
 
-    #Call the main challenge function to run the analysis
-    challenge(wiki_movies_raw, kaggle_metadata, ratings)
+        #Call the main challenge function to run the analysis
+        challenge(wiki_movies_raw, kaggle_metadata, ratings)
+    except FileNotFoundError as fe:
+        print("main: Wrong file or file path", fe)
 
+#Python main function
 if __name__ == "__main__":
     main()
