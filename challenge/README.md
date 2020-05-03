@@ -27,7 +27,7 @@ The goals of this challenge are for you to:
 #### Running Time
 ![Running Time](./analysis/running_time.png)
 
-#### .CSVs Generated from PostGresSQL Table exports.
+### PostGresSQL Table CSV exports.
 [Movies Table Export](./db/movies_dump.csv)
 </br>
 [Ratings Table Export](./db/ratings_dump.csv)
