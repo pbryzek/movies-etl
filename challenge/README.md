@@ -1,6 +1,6 @@
 # Bootcamp: UCB-VIRT-DATA-PT-03-2020-U-B-TTH
 ## Bootcamp Challenge #8 - 5/3/2020
-Bootcamp Challenge 8: Module pewlett-hackard-analysis
+Bootcamp Challenge 8: Module movies-etl
 
 ### Dataset Used
 - [wikipedia.movies.json](https://courses.bootcampspot.com/courses/140/files/37183/download?wrap=1)
