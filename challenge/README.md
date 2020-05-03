@@ -14,8 +14,25 @@ The goals of this challenge are for you to:
 - Load new data into PostgreSQL.
 
 ### Challenge Findings
-#### Finding 1
-![](./analysis/EmployeeDB.png)
-#### .CSVs Generated
-[](./analysis/emp_eligibility.csv)
+#### Box Office
+![Box Office](./analysis/box_office.png)
+#### Budget
+![Budget](./analysis/budget_wiki_kaggle.png)
+#### Ratings Frequency
+![Ratings](./analysis/ratings_frequency.png)
+#### Release Date
+![Release Date](./analysis/release_date.png)
+#### Revenue
+![Revenue](./analysis/revenue.png)
+#### Running Time
+![Running Time](./analysis/running_time.png)
+
+#### .CSVs Generated from PostGresSQL Table exports.
+[Movies Table Export](./db/movies_dump.csv)
+[Ratings Table Export](./db/ratings_dump.csv)
 </br>
+
+### Assumptions Identified:
+1. imdb_id Format: String format of the URL to extract imdb_id
+2. Numeric String for :
+#### 
