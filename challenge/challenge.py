@@ -333,8 +333,14 @@ def main():
                 wiki_movies_raw = json.load(file)
             except ValueError:  # includes simplejson.decoder.JSONDecodeError
                 print ('main: Decoding JSON has failed')
-        kaggle_metadata = pd.read_csv(f'{file_dir}movies_metadata.csv',low_memory=False)
-        ratings = pd.read_csv(f'{file_dir}ratings.csv')
+        try:
+            kaggle_metadata = pd.read_csv(f'{file_dir}movies_metadata.csv',low_memory=False)
+        except pd.errors.ParserError as e:
+            print ('main: Expected movies_metadata to be a .CSV but failed to process', e)
+        try:
+            ratings = pd.read_csv(f'{file_dir}ratings.csv')
+        except pd.errors.ParserError as e:
+            print ('main: Expected ratings to be a .CSV but failed to process', e)
 
         #Call the main challenge function to run the analysis
         challenge(wiki_movies_raw, kaggle_metadata, ratings)
